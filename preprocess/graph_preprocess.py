@@ -69,8 +69,9 @@ def generate_ast(dataset_name):
     dir = os.path.join('./DataSet', dataset_name)
     paths = []
     asts = []
-    tokens_sets = []
-    for root, dirs, files in os.walk(dir):
+    tokens_set = set()
+    print('Start generate ast...')
+    for root, dirs, files in tqdm(os.walk(dir)):
         if len(files) == 0:
             continue
         for file in files:
@@ -79,29 +80,29 @@ def generate_ast(dataset_name):
                 code_text = f.read()
                 # 当读入文件是类文件时，如googlejam4_src
                 ast = javalang.parse.parse(code_text).types[0]
-                ast, tokens_set = convert_to_ast(ast)
+                ast, tokens = convert_to_ast(ast)
                 asts.append(ast)
-                tokens_sets.append(list(tokens_set))
+                tokens_set.update(tokens)
 
                 paths.append(file)
     file2ast = dict(zip(paths, asts))
-    file2tokens = dict(zip(paths, tokens_sets))
-    print('Generate ast done...')
-    return file2ast, file2tokens
+    all_tokens = list(tokens_set)
+    tokens_idx = range(len(all_tokens))
+    token2idx = dict(zip(all_tokens, tokens_idx))
+    return file2ast, token2idx
 
 
 # 图的forward()输入为dgl.graph和[N*dim]的输入图结点向量
-def generate_graph(file2ast, file2tokens):
-    print('Start generate graph...')
+def generate_graph(file2ast, token2idx):
     file2tokenIdx = dict()
     file2graph = dict()
+    print('Start generate graph...')
     for file, ast in tqdm(file2ast.items()):
         # 先获取对应graph的结点index列表，用于模型输入
         idx_list = []
         nodes = ast.nodes
-        tokens = file2tokens[file]
         for i in range(ast.size()):
-            idx_list.append([tokens.index(nodes[i].tag)])
+            idx_list.append([token2idx[nodes[i].tag]])
         file2tokenIdx[file] = idx_list
 
         # 再获取对应graph的表示
@@ -110,8 +111,6 @@ def generate_graph(file2ast, file2tokens):
         add_edges(ast, edges, edge_types, extra_edge=True)
         graph = [edges, edge_types]
         file2graph[file] = graph
-
-    print('Generate graph done...')
 
     return file2graph, file2tokenIdx
 

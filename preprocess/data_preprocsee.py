@@ -10,7 +10,6 @@ def generate_pair_data(dataset_name):
         dir1 = dirs[i]
         curDir = os.path.join(dataset_dir, dir1)
         files = os.listdir(curDir)
-        print(len(files))
         # Add true clone pairs
         for fi in range(len(files)):
             for fj in range(fi + 1, len(files)):
@@ -32,7 +31,7 @@ def generate_pair_data(dataset_name):
 
     print(len(true_clone_pairs))
     print(len(false_clone_pairs))
-    print('Generate pair data done...')
+    print('Generate pair data file done...')
 
 
 if __name__ == '__main__':
