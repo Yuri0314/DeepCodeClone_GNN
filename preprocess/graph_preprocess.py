@@ -70,8 +70,7 @@ def generate_ast(dataset_name):
     paths = []
     asts = []
     tokens_set = set()
-    print('Start generate ast...')
-    for root, dirs, files in tqdm(os.walk(dir)):
+    for root, dirs, files in os.walk(dir):
         if len(files) == 0:
             continue
         for file in files:
@@ -96,8 +95,7 @@ def generate_ast(dataset_name):
 def generate_graph(file2ast, token2idx):
     file2tokenIdx = dict()
     file2graph = dict()
-    print('Start generate graph...')
-    for file, ast in tqdm(file2ast.items()):
+    for file, ast in tqdm(file2ast.items(), desc='Graph generating'):
         # 先获取对应graph的结点index列表，用于模型输入
         idx_list = []
         nodes = ast.nodes

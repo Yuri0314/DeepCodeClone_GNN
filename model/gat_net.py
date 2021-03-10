@@ -24,24 +24,31 @@ class GAT(nn.Module):
         self.gat_layers = nn.ModuleList()
         # input embedding
         self.embed = nn.Embedding(tokens_size, in_dim)
-        # input projection (no residual)
-        self.gat_layers.append(GATConv(
-            in_dim, hidden_dims[0], num_heads[0],
-            feat_drop, attn_drop, negative_slope, False, activation))
-        # hidden layers
-        for l in range(1, num_layers):
-            # due to multi-head, the in_dim = num_hidden * num_heads
+        if num_layers > 1:
+            # input projection (no residual)
             self.gat_layers.append(GATConv(
-                hidden_dims[l - 1] * num_heads[l - 1], hidden_dims[l], num_heads[l],
+                in_dim, hidden_dims[0], num_heads[0],
+                feat_drop, attn_drop, negative_slope, False, activation))
+            # hidden layers
+            if num_layers > 2:
+                for l in range(1, num_layers - 1):
+                    # due to multi-head, the in_dim = num_hidden * num_heads
+                    self.gat_layers.append(GATConv(
+                        hidden_dims[l - 1] * num_heads[l - 1], hidden_dims[l], num_heads[l],
+                        feat_drop, attn_drop, negative_slope, residual, activation))
+            self.gat_layers.append(GATConv(
+                hidden_dims[-1] * num_heads[-1], out_dim, 1,
                 feat_drop, attn_drop, negative_slope, residual, activation))
+        else:
+            self.gat_layers.append(GATConv(
+                in_dim, out_dim, 1, feat_drop, attn_drop, negative_slope, False, activation))
         # readout funtion
         self.readout_layer = GlobalAttentionPooling(nn.Sequential(nn.Linear(out_dim, 1), nn.Sigmoid()))
 
     def forward(self, inputs):
-        x, edges, edge_types = inputs
+        x, u, v, edge_types = inputs
         # input embedding
         h = self.embed(x).squeeze(1)
-        u, v = zip(*edges)
         g = dgl.graph((u, v))
         for l in range(self.num_layers):
             h = self.gat_layers[l](g, h).flatten(1)

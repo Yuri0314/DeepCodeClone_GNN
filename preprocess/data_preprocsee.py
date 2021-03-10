@@ -31,7 +31,7 @@ def generate_pair_data(dataset_name):
 
     print(len(true_clone_pairs))
     print(len(false_clone_pairs))
-    print('Generate pair data file done...')
+    print('Generate pair data file done...', flush=True)
 
 
 if __name__ == '__main__':

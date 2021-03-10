@@ -1,4 +1,10 @@
 import argparse
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from torch.utils.data import DataLoader
+from tqdm import trange
 
 from model.model import DCC_GNN
 from preprocess.graph_preprocess import generate_ast, generate_graph
@@ -33,9 +39,11 @@ def parse_args():
     parser.add_argument("--residual", action="store_true", default=False,
                         help="use residual connection in gnn")
 
-    parser.add_argument("--lr", type=float, default=0.005,
+    parser.add_argument("--batch-size", type=int, default=32,
+                        help="batch size")
+    parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
-    parser.add_argument('--weight-decay', type=float, default=5e-4,
+    parser.add_argument('--weight-decay', type=float, default=0,
                         help="weight decay")
     parser.add_argument('--early-stop', action='store_true', default=False,
                         help="indicates whether to use early stop or not")
@@ -52,19 +60,114 @@ def preprocess(args):
     train_data, test_data = generate_model_input(file2graph, file2tokenIdx, args.dataset)
     return train_data, test_data, len(token2idx)
 
-def train(args, model, data):
-    pass
+
+def test(model, device, test_data, loss_func):
+    tp = 0
+    tn = 0
+    fp = 0
+    fn = 0
+    loss = 0.0
+    for x1, x2, label in test_data:
+        idx_list1, edges1, edge_types1 = x1
+        idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
+        u1, v1 = zip(*edges1)
+        u1 = torch.tensor(u1, dtype=torch.long, device=device)
+        v1 = torch.tensor(v1, dtype=torch.long, device=device)
+        edge_types1 = torch.tensor(edge_types1, dtype=torch.long, device=device)
+        idx_list2, edges2, edge_types2 = x2
+        idx_list2 = torch.tensor(idx_list2, dtype=torch.long, device=device)
+        u2, v2 = zip(*edges2)
+        u2 = torch.tensor(u2, dtype=torch.long, device=device)
+        v2 = torch.tensor(v2, dtype=torch.long, device=device)
+        edge_types2 = torch.tensor(edge_types2, dtype=torch.long, device=device)
+        label_tensor = torch.tensor([label], dtype=torch.long, device=device)
+        in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
+        output = model(in_data)
+        loss = loss + loss_func(output, label_tensor)
+        predict = torch.argmax(output, dim=1).item()
+        if predict == 1 and label == 1:
+            tp += 1
+        if predict == 0 and label == 0:
+            tn += 1
+        if predict == 1 and label == 0:
+            fp += 1
+        if predict == 0 and label == 1:
+            fn += 1
+
+    loss = loss.item() / len(test_data)
+    print('Test Loss=%g' % round(loss, 5))
+    print(tp, tn, fp, fn)
+    p = 0.0
+    r = 0.0
+    f1 = 0.0
+    if tp + fp == 0:
+        print('precision is none')
+        return
+    p = tp / (tp + fp)
+    if tp + fn == 0:
+        print('recall is none')
+        return
+    r = tp / (tp + fn)
+    f1 = 2 * p * r / (p + r)
+    print('precision')
+    print(p)
+    print('recall')
+    print(r)
+    print('F1')
+    print(f1)
+
+
+def train(args, model, device, train_data, test_data):
+    dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, collate_fn=lambda x: x)
+    loss_func = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    epochs = trange(args.epochs, desc='Epoch', leave=True)
+    for epoch in epochs:
+        model.train()
+        total_loss = 0.0
+        num = 0.0
+        for i, batch in enumerate(dataloader):
+            optimizer.zero_grad()
+            batch_loss = 0
+            for x1, x2, label in batch:
+                idx_list1, edges1, edge_types1 = x1
+                idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
+                u1, v1 = zip(*edges1)
+                u1 = torch.tensor(u1, dtype=torch.long, device=device)
+                v1 = torch.tensor(v1, dtype=torch.long, device=device)
+                edge_types1 = torch.tensor(edge_types1, dtype=torch.long, device=device)
+                idx_list2, edges2, edge_types2 = x2
+                idx_list2 = torch.tensor(idx_list2, dtype=torch.long, device=device)
+                u2, v2 = zip(*edges2)
+                u2 = torch.tensor(u2, dtype=torch.long, device=device)
+                v2 = torch.tensor(v2, dtype=torch.long, device=device)
+                edge_types2 = torch.tensor(edge_types2, dtype=torch.long, device=device)
+                label = torch.tensor([label], dtype=torch.long, device=device)
+                in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
+                output = model(in_data)
+                batch_loss = batch_loss + loss_func(output, label)
+            batch_loss.backward(retain_graph=True)
+            optimizer.step()
+            total_loss += batch_loss.item()
+            num += len(batch)
+            loss = total_loss / num
+
+            epochs.set_description("Epoch {} ".format(epoch) + "batch {} ".format(str(i + 1))
+                                   + "(Training Loss=%g)" % round(loss, 5))
+
+        test(model, device, test_data, loss_func)
+
 
 if __name__ == '__main__':
     args = parse_args()
+    device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() and args.gpu != -1
+                          else "cpu")
     train_data, test_data, token_size = preprocess(args)
-    hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers)]
-    num_heads = [args.num_heads for _ in range(args.num_layers)]
-    print(hidden_dims)
-    print(num_heads)
+    # Define model structure
+    hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers - 1)]
+    num_heads = [args.num_heads for _ in range(args.num_layers - 1)]
     model = DCC_GNN(token_size, args.input_dim, hidden_dims, args.graph_dim, num_heads,
                     [128, 64], [32], 2, args.num_layers, args.feat_drop, args.attn_drop,
                     args.negative_slope, args.residual, 2, 2)
-    print(model)
-    print(token_size)
-    # train(args, train_data)
+    model.to(device)
+    train(args, model, device, train_data, test_data)

@@ -1,23 +1,23 @@
 import os
-import random
 
 import torch
 
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
+from tqdm import tqdm
 
 
 class ClonePairDataset(Dataset):
-    def __init__(self, file2graph, file2tokenIdx, clone_pairs):
+    def __init__(self, file2graph, file2tokenIdx, clone_pairs, desc):
         self.data = []
-        for clone_pair in clone_pairs:
+        for clone_pair in tqdm(clone_pairs, desc=desc):
             tmp_lst = clone_pair.split()
             idx_list1 = file2tokenIdx[tmp_lst[0]]
             edges1, edge_types1 = file2graph[tmp_lst[0]]
             idx_list2 = file2tokenIdx[tmp_lst[1]]
             edges2, edge_types2 = file2graph[tmp_lst[1]]
 
-            self.data.append([[idx_list1, edges1, edge_types1], [idx_list2, edges2, edge_types2], tmp_lst[2]])
+            self.data.append(([idx_list1, edges1, edge_types1], [idx_list2, edges2, edge_types2], int(tmp_lst[2])))
 
     def __getitem__(self, item):
         return self.data[item]
@@ -32,8 +32,10 @@ def generate_model_input(file2graph, file2tokenIdx, dataset='googlejam4_src', va
     with open(os.path.join('.', dataset + '_false_clone_pairs.dat'), 'r') as f:
         false_pairs = f.readlines()
 
-    true_dataset = ClonePairDataset(file2graph, file2tokenIdx, true_pairs)
-    false_dataset = ClonePairDataset(file2graph, file2tokenIdx, false_pairs)
+    true_dataset = ClonePairDataset(file2graph, file2tokenIdx, true_pairs,
+                                    'True clone pair data generating')
+    false_dataset = ClonePairDataset(file2graph, file2tokenIdx, false_pairs,
+                                     'False clone pair data generating')
 
     # 划分数据集
     true_test_size = int(validation_split * len(true_dataset))
