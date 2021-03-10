@@ -67,7 +67,6 @@ def test(model, device, test_data, loss_func):
     fp = 0
     fn = 0
     loss = 0.0
-    f = open("./test_{}.log".format(args.dataset), 'w')
     for x1, x2, label in test_data:
         idx_list1, edges1, edge_types1 = x1
         idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
@@ -97,6 +96,7 @@ def test(model, device, test_data, loss_func):
 
     loss = loss.item() / len(test_data)
     print('Test Loss=%g' % round(loss, 5))
+    f = open("./test_{}.log".format(args.dataset), 'w')
     f.write('Loss=%g\n' % round(loss, 5))
     print(tp, tn, fp, fn)
     p = 0.0
@@ -122,6 +122,7 @@ def test(model, device, test_data, loss_func):
     f.write('Precision: {}\n'.format(str(p)))
     f.write('Recall: {}\n'.format(str(r)))
     f.write('F1: {}\n'.format(str(f1)))
+    f.flush()
     f.close()
 
 
@@ -163,6 +164,7 @@ def train(args, model, device, train_data, test_data):
 
             f.write("Epoch_{} ".format(epoch + 1) + "batch_{} ".format(str(i + 1)) +
                     "Training Loss=%g\n" % round(loss, 5))
+            f.flush()
             epochs.set_description("Epoch {} ".format(epoch + 1) + "batch {} ".format(str(i + 1))
                                    + "(Training Loss=%g)" % round(loss, 5))
 
