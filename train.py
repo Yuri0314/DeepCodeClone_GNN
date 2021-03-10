@@ -67,6 +67,7 @@ def test(model, device, test_data, loss_func):
     fp = 0
     fn = 0
     loss = 0.0
+    f = open("./test_{}.log".format(args.dataset), 'w')
     for x1, x2, label in test_data:
         idx_list1, edges1, edge_types1 = x1
         idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
@@ -96,16 +97,19 @@ def test(model, device, test_data, loss_func):
 
     loss = loss.item() / len(test_data)
     print('Test Loss=%g' % round(loss, 5))
+    f.write('Loss=%g\n' % round(loss, 5))
     print(tp, tn, fp, fn)
     p = 0.0
     r = 0.0
     f1 = 0.0
     if tp + fp == 0:
         print('precision is none')
+        f.close()
         return
     p = tp / (tp + fp)
     if tp + fn == 0:
         print('recall is none')
+        f.close()
         return
     r = tp / (tp + fn)
     f1 = 2 * p * r / (p + r)
@@ -115,12 +119,17 @@ def test(model, device, test_data, loss_func):
     print(r)
     print('F1')
     print(f1)
+    f.write('Precision: {}\n'.format(str(p)))
+    f.write('Recall: {}\n'.format(str(r)))
+    f.write('F1: {}\n'.format(str(f1)))
+    f.close()
 
 
 def train(args, model, device, train_data, test_data):
     dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, collate_fn=lambda x: x)
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    f = open('./train_{}.log'.format(args.dataset), 'w')
     epochs = trange(args.epochs, desc='Epoch', leave=True)
     for epoch in epochs:
         model.train()
@@ -152,10 +161,14 @@ def train(args, model, device, train_data, test_data):
             num += len(batch)
             loss = total_loss / num
 
-            epochs.set_description("Epoch {} ".format(epoch) + "batch {} ".format(str(i + 1))
+            f.write("Epoch_{} ".format(epoch + 1) + "batch_{} ".format(str(i + 1)) +
+                    "Training Loss=%g\n" % round(loss, 5))
+            epochs.set_description("Epoch {} ".format(epoch + 1) + "batch {} ".format(str(i + 1))
                                    + "(Training Loss=%g)" % round(loss, 5))
 
         test(model, device, test_data, loss_func)
+    f.close()
+    torch.save(model, './model_{}.pth'.format(args.dataset))
 
 
 if __name__ == '__main__':
