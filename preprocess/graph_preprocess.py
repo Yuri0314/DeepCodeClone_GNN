@@ -70,20 +70,33 @@ def generate_ast(dataset_name):
     paths = []
     asts = []
     tokens_set = set()
-    for root, dirs, files in os.walk(dir):
-        if len(files) == 0:
-            continue
-        for file in files:
-            file = os.path.join(root, file)
+    if dataset_name == 'googlejam4_src':
+        for root, dirs, files in os.walk(dir):
+            if len(files) == 0:
+                continue
+            for file in files:
+                file = os.path.join(root, file)
+                with open(file, 'r', encoding="UTF-8") as f:
+                    code_text = f.read()
+                    ast = javalang.parse.parse(code_text).types[0]
+                    ast, tokens = convert_to_ast(ast)
+                    asts.append(ast)
+                    tokens_set.update(tokens)
+                    paths.append(file)
+    elif dataset_name == 'bigclonebenchdata':
+        files = os.listdir(dir)
+        for file in tqdm(files):
+            file = os.path.join(dir, file)
             with open(file, 'r', encoding="UTF-8") as f:
                 code_text = f.read()
-                # 当读入文件是类文件时，如googlejam4_src
-                ast = javalang.parse.parse(code_text).types[0]
+                tokens = javalang.tokenizer.tokenize(code_text)
+                parser = javalang.parser.Parser(tokens)
+                ast = parser.parse_member_declaration()
                 ast, tokens = convert_to_ast(ast)
                 asts.append(ast)
                 tokens_set.update(tokens)
-
                 paths.append(file)
+
     file2ast = dict(zip(paths, asts))
     all_tokens = list(tokens_set)
     tokens_idx = range(len(all_tokens))
