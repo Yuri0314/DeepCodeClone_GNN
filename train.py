@@ -1,4 +1,5 @@
 import argparse
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -132,8 +133,10 @@ def train(args, model, device, train_data, test_data):
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     f = open('./train_{}.log'.format(args.dataset), 'w')
+    train_time = 0.0
     epochs = trange(args.epochs, desc='Epoch', leave=True)
     for epoch in epochs:
+        start_time = time.time()
         model.train()
         total_loss = 0.0
         num = 0.0
@@ -169,7 +172,12 @@ def train(args, model, device, train_data, test_data):
             epochs.set_description("Epoch {} ".format(epoch + 1) + "batch {} ".format(str(i + 1))
                                    + "(Training Loss=%g)" % round(loss, 5))
 
+        epoch_time = time.time() - start_time
+        f.write("Epoch_{} ".format(epoch + 1) + "Training time: %g\n" % round(epoch_time, 5))
+        f.flush()
+        train_time += epoch_time
         test(model, device, test_data, loss_func)
+    f.write("Total training time: %g\n" % round(train_time, 5))
     f.close()
     torch.save(model, './model_{}.pth'.format(args.dataset))
 
