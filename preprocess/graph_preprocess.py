@@ -85,7 +85,7 @@ def generate_ast(dataset_name):
                     paths.append(file)
     elif dataset_name == 'bigclonebenchdata':
         files = os.listdir(dir)
-        for file in tqdm(files):
+        for file in tqdm(files, desc='Ast generating'):
             file = os.path.join(dir, file)
             with open(file, 'r', encoding="UTF-8") as f:
                 code_text = f.read()

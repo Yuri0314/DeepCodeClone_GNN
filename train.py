@@ -7,14 +7,14 @@ from torch.utils.data import DataLoader
 from tqdm import trange
 
 from model.model import DCC_GNN
+from preprocess.data_preprocsee import generate_pair_data, split_true_false_data
 from preprocess.graph_preprocess import generate_ast, generate_graph
-from preprocess.data_preprocsee import generate_pair_data
 from preprocess.model_input import generate_model_input
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
-    parser.add_argument("--dataset", default="googlejam4_src",
+    parser.add_argument("--dataset", default="bigclonebenchdata",
                         help="which dataset to use.")
     parser.add_argument("--gpu", type=int, default=-1,
                         help="which GPU to use. Set -1 to use CPU.")
@@ -45,8 +45,6 @@ def parse_args():
                         help="learning rate")
     parser.add_argument('--weight-decay', type=float, default=0,
                         help="weight decay")
-    parser.add_argument('--early-stop', action='store_true', default=False,
-                        help="indicates whether to use early stop or not")
     args = parser.parse_args()
     print(args)
 
@@ -54,7 +52,10 @@ def parse_args():
 
 
 def preprocess(args):
-    generate_pair_data(args.dataset)
+    if args.dataset == 'googlejam4_src':
+        generate_pair_data('googlejam4_src')
+    elif args.dataset == 'bigclonebenchdata':
+        split_true_false_data('bigclonebenchdata')
     file2ast, token2idx = generate_ast(args.dataset)
     file2graph, file2tokenIdx = generate_graph(file2ast, token2idx)
     train_data, test_data = generate_model_input(file2graph, file2tokenIdx, args.dataset)
