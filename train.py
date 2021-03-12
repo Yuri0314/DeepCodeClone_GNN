@@ -46,6 +46,10 @@ def parse_args():
                         help="learning rate")
     parser.add_argument('--weight-decay', type=float, default=0,
                         help="weight decay")
+    parser.add_argument("--validation-split", type=float, default=0.2,
+                        help="validation data ratio")
+    parser.add_argument("--data-balance-ratio", type=int, default=-1,
+                        help="false data and true data balance ratio. Set -1 to not use balance")
     args = parser.parse_args()
     print(args)
 
@@ -59,7 +63,9 @@ def preprocess(args):
         split_true_false_data('bigclonebenchdata')
     file2ast, token2idx = generate_ast(args.dataset)
     file2graph, file2tokenIdx = generate_graph(file2ast, token2idx)
-    train_data, test_data = generate_model_input(file2graph, file2tokenIdx, args.dataset)
+    train_data, test_data = generate_model_input(file2graph, file2tokenIdx,
+                                                 args.dataset, args.validation_split,
+                                                 args.data_balance_ratio)
     return train_data, test_data, len(token2idx)
 
 
