@@ -1,4 +1,5 @@
-from preprocess.data_preprocsee import split_true_false_data
+import time
 
-dataset_name = 'bigclonebenchdata'
-split_true_false_data(dataset_name)
+a = time.time()
+time.sleep(5)
+print(time.time() - a)

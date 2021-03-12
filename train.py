@@ -15,9 +15,9 @@ from preprocess.model_input import generate_model_input
 
 def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
-    parser.add_argument("--dataset", default="bigclonebenchdata",
+    parser.add_argument("--dataset", default="googlejam4_src",
                         help="which dataset to use.")
-    parser.add_argument("--gpu", type=int, default=-1,
+    parser.add_argument("--gpu", type=int, default=0,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=10,
                         help="number of training epochs")
@@ -177,9 +177,9 @@ def train(args, model, device, train_data, test_data):
         f.flush()
         train_time += epoch_time
         test(model, device, test_data, loss_func)
+        torch.save(model, './model_{}_{}.pth'.format(args.dataset, epoch + 1))
     f.write("Total training time: %g\n" % round(train_time, 5))
     f.close()
-    torch.save(model, './model_{}.pth'.format(args.dataset))
 
 
 if __name__ == '__main__':
