@@ -108,7 +108,7 @@ def generate_ast(dataset_name):
 def generate_graph(file2ast, token2idx):
     file2tokenIdx = dict()
     file2graph = dict()
-    for file, ast in tqdm(file2ast.items(), desc='Graph generating'):
+    for file, ast in tqdm(file2ast.items(), desc='Graph generating', leave=True):
         # 先获取对应graph的结点index列表，用于模型输入
         idx_list = []
         nodes = ast.nodes

@@ -166,9 +166,11 @@ def train(args, model, device, train_data, test_data):
             num += len(batch)
             loss = total_loss / num
 
-            f.write("Epoch_{} ".format(epoch + 1) + "batch_{} ".format(str(i + 1)) +
+            # 每100个batch记录一次loss
+            if (i + 1) % 100 == 0:
+                f.write("Epoch_{} ".format(epoch + 1) + "batch_{} ".format(str(i + 1)) +
                     "Training Loss=%g\n" % round(loss, 5))
-            f.flush()
+                f.flush()
             epochs.set_description("Epoch {} ".format(epoch + 1) + "batch {} ".format(str(i + 1))
                                    + "(Training Loss=%g)" % round(loss, 5))
 
