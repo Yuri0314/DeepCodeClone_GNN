@@ -27,7 +27,7 @@ def parse_args():
                         help="dimension of hidden layer in gnn")
     parser.add_argument("--graph-dim", type=int, default=128,
                         help="dimension of graph vector")
-    parser.add_argument("--num-heads", type=int, default=4,
+    parser.add_argument("--num-heads", type=int, default=3,
                         help="number of hidden attention heads used in gnn")
     parser.add_argument("--num-layers", type=int, default=4,
                         help="number of hidden layers in gnn")
@@ -48,7 +48,7 @@ def parse_args():
                         help="weight decay")
     parser.add_argument("--validation-split", type=float, default=0.2,
                         help="validation data ratio")
-    parser.add_argument("--data-balance-ratio", type=int, default=-1,
+    parser.add_argument("--data-balance-ratio", type=int, default=1,
                         help="false data and true data balance ratio. Set -1 to not use balance")
     args = parser.parse_args()
     print(args)
