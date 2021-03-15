@@ -28,18 +28,21 @@ class ClonePairDataset(Dataset):
 
 
 def generate_model_input(file2graph, file2tokenIdx, dataset='googlejam4_src',
-                         validation_split=.2, data_balance_ratio=1):
+                         validation_split=.2, data_balance_ratio=1, dataset_ratio=1):
     with open(os.path.join('.', dataset + '_true_clone_pairs.dat'), 'r') as f:
         true_pairs = f.readlines()
     with open(os.path.join('.', dataset + '_false_clone_pairs.dat'), 'r') as f:
         false_pairs = f.readlines()
 
+    true_num = len(true_pairs)
+    random.seed(true_num)
+    # 数据缩小
+    random.shuffle(true_pairs)
+    true_pairs = true_pairs[:int(true_num * dataset_ratio)]
     # 数据平衡
     if data_balance_ratio != -1:
-        true_num = len(true_pairs)
-        random.seed(true_num)
         random.shuffle(false_pairs)
-        false_pairs = false_pairs[:true_num * data_balance_ratio]
+        false_pairs = false_pairs[:len(true_pairs) * data_balance_ratio]
 
     true_dataset = ClonePairDataset(file2graph, file2tokenIdx, true_pairs,
                                     'True clone pair data generating')

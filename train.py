@@ -17,7 +17,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
     parser.add_argument("--dataset", default="googlejam4_src",
                         help="which dataset to use.")
-    parser.add_argument("--gpu", type=int, default=0,
+    parser.add_argument('--dataset-ratio', type=float, default=1,
+                        help="how much data to use")
+    parser.add_argument("--gpu", type=int, default=1,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=10,
                         help="number of training epochs")
@@ -37,7 +39,7 @@ def parse_args():
                         help="attention dropout in gnn")
     parser.add_argument('--negative-slope', type=float, default=0.2,
                         help="the negative slope of leaky relu")
-    parser.add_argument("--residual", action="store_true", default=False,
+    parser.add_argument("--residual", action="store_true", default=True,
                         help="use residual connection in gnn")
 
     parser.add_argument("--batch-size", type=int, default=32,
@@ -65,42 +67,46 @@ def preprocess(args):
     file2graph, file2tokenIdx = generate_graph(file2ast, token2idx)
     train_data, test_data = generate_model_input(file2graph, file2tokenIdx,
                                                  args.dataset, args.validation_split,
-                                                 args.data_balance_ratio)
+                                                 args.data_balance_ratio,
+                                                 args.dataset_ratio)
     return train_data, test_data, len(token2idx)
 
 
 def test(model, device, test_data, loss_func):
+    dataloader = DataLoader(test_data, batch_size=128, shuffle=False,
+                            collate_fn=lambda x: x, num_workers=4)
     tp = 0
     tn = 0
     fp = 0
     fn = 0
     loss = 0.0
-    for x1, x2, label in test_data:
-        idx_list1, edges1, edge_types1 = x1
-        idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
-        u1, v1 = zip(*edges1)
-        u1 = torch.tensor(u1, dtype=torch.long, device=device)
-        v1 = torch.tensor(v1, dtype=torch.long, device=device)
-        edge_types1 = torch.tensor(edge_types1, dtype=torch.long, device=device)
-        idx_list2, edges2, edge_types2 = x2
-        idx_list2 = torch.tensor(idx_list2, dtype=torch.long, device=device)
-        u2, v2 = zip(*edges2)
-        u2 = torch.tensor(u2, dtype=torch.long, device=device)
-        v2 = torch.tensor(v2, dtype=torch.long, device=device)
-        edge_types2 = torch.tensor(edge_types2, dtype=torch.long, device=device)
-        label_tensor = torch.tensor([label], dtype=torch.long, device=device)
-        in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
-        output = model(in_data)
-        loss = loss + loss_func(output, label_tensor)
-        predict = torch.argmax(output, dim=1).item()
-        if predict == 1 and label == 1:
-            tp += 1
-        if predict == 0 and label == 0:
-            tn += 1
-        if predict == 1 and label == 0:
-            fp += 1
-        if predict == 0 and label == 1:
-            fn += 1
+    for _, batch in enumerate(dataloader):
+        for x1, x2, label in batch:
+            idx_list1, edges1, edge_types1 = x1
+            idx_list1 = torch.tensor(idx_list1, dtype=torch.long, device=device)
+            u1, v1 = zip(*edges1)
+            u1 = torch.tensor(u1, dtype=torch.long, device=device)
+            v1 = torch.tensor(v1, dtype=torch.long, device=device)
+            edge_types1 = torch.tensor(edge_types1, dtype=torch.long, device=device)
+            idx_list2, edges2, edge_types2 = x2
+            idx_list2 = torch.tensor(idx_list2, dtype=torch.long, device=device)
+            u2, v2 = zip(*edges2)
+            u2 = torch.tensor(u2, dtype=torch.long, device=device)
+            v2 = torch.tensor(v2, dtype=torch.long, device=device)
+            edge_types2 = torch.tensor(edge_types2, dtype=torch.long, device=device)
+            label_tensor = torch.tensor([label], dtype=torch.long, device=device)
+            in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
+            output = model(in_data)
+            loss = loss + loss_func(output, label_tensor)
+            predict = torch.argmax(output, dim=1).item()
+            if predict == 1 and label == 1:
+                tp += 1
+            if predict == 0 and label == 0:
+                tn += 1
+            if predict == 1 and label == 0:
+                fp += 1
+            if predict == 0 and label == 1:
+                fn += 1
 
     loss = loss.item() / len(test_data)
     print('Test Loss=%g' % round(loss, 5))
@@ -135,7 +141,8 @@ def test(model, device, test_data, loss_func):
 
 
 def train(args, model, device, train_data, test_data):
-    dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, collate_fn=lambda x: x)
+    dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True,
+                            collate_fn=lambda x: x, num_workers=4)
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     f = open('./train_{}.log'.format(args.dataset), 'w')
