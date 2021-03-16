@@ -15,11 +15,11 @@ from preprocess.model_input import generate_model_input
 
 def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
-    parser.add_argument("--dataset", default="googlejam4_src",
+    parser.add_argument("--dataset", default="bigclonebenchdata",
                         help="which dataset to use.")
     parser.add_argument('--dataset-ratio', type=float, default=1,
                         help="how much data to use")
-    parser.add_argument("--gpu", type=int, default=1,
+    parser.add_argument("--gpu", type=int, default=0,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=10,
                         help="number of training epochs")
@@ -39,7 +39,7 @@ def parse_args():
                         help="attention dropout in gnn")
     parser.add_argument('--negative-slope', type=float, default=0.2,
                         help="the negative slope of leaky relu")
-    parser.add_argument("--residual", action="store_true", default=True,
+    parser.add_argument("--residual", action="store_true", default=False,
                         help="use residual connection in gnn")
 
     parser.add_argument("--batch-size", type=int, default=32,
@@ -191,7 +191,8 @@ def train(args, model, device, train_data, test_data):
         f.write("Epoch_{} ".format(epoch + 1) + "Training time: %g\n" % round(epoch_time, 5))
         f.flush()
         train_time += epoch_time
-        test(model, device, test_data, loss_func)
+        with torch.no_grad():
+            test(model, device, test_data, loss_func)
         torch.save(model, './model_{}_{}.pth'.format(args.dataset, epoch + 1))
     f.write("Total training time: %g\n" % round(train_time, 5))
     f.close()
