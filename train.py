@@ -3,6 +3,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 
 from torch.utils.data import DataLoader
 from tqdm import trange
@@ -17,7 +18,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
     parser.add_argument("--dataset", default="bigclonebenchdata",
                         help="which dataset to use.")
-    parser.add_argument('--dataset-ratio', type=float, default=1,
+    parser.add_argument('--dataset-ratio', type=float, default=0.2,
                         help="how much data to use")
     parser.add_argument("--gpu", type=int, default=0,
                         help="which GPU to use. Set -1 to use CPU.")
@@ -72,7 +73,7 @@ def preprocess(args):
     return train_data, test_data, len(token2idx)
 
 
-def test(model, device, test_data, loss_func):
+def test(model, device, test_data, loss_func, epoch):
     dataloader = DataLoader(test_data, batch_size=128, shuffle=False,
                             collate_fn=lambda x: x, num_workers=4)
     tp = 0
@@ -110,8 +111,12 @@ def test(model, device, test_data, loss_func):
 
     loss = loss.item() / len(test_data)
     print('Test Loss=%g' % round(loss, 5))
-    f = open("./test_{}.log".format(args.dataset), 'w')
-    f.write('Loss=%g\n' % round(loss, 5))
+    f_name = "./test_{}.log".format(args.dataset)
+    if os.path.exists(f_name):
+        f = open(f_name, 'a')
+    else:
+        f = open(f_name, 'w')
+    f.write('Epoch {} '.format(epoch) + 'Loss=%g\n' % round(loss, 5))
     print(tp, tn, fp, fn)
     p = 0.0
     r = 0.0
@@ -140,14 +145,19 @@ def test(model, device, test_data, loss_func):
     f.close()
 
 
-def train(args, model, device, train_data, test_data):
+def train(args, model, device, train_data, test_data, exist=-1):
     dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True,
                             collate_fn=lambda x: x, num_workers=4)
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    f = open('./train_{}.log'.format(args.dataset), 'w')
     train_time = 0.0
-    epochs = trange(args.epochs, desc='Epoch', leave=True)
+    if exist == -1:
+        f = open('./train_{}.log'.format(args.dataset), 'w')
+        epochs = trange(args.epochs, desc='Epoch', leave=True)
+    else:
+        optimizer.load_state_dict(torch.load('./optimizer.pth'))
+        f = open('./train_continue_{}.log'.format(args.dataset), 'w')
+        epochs = trange(exist, args.epochs, desc='Epoch', leave=True)
     for epoch in epochs:
         start_time = time.time()
         model.train()
@@ -192,8 +202,9 @@ def train(args, model, device, train_data, test_data):
         f.flush()
         train_time += epoch_time
         with torch.no_grad():
-            test(model, device, test_data, loss_func)
+            test(model, device, test_data, loss_func, epoch)
         torch.save(model, './model_{}_{}.pth'.format(args.dataset, epoch + 1))
+        torch.save(optimizer.state_dict(), './optimizer.pth')
     f.write("Total training time: %g\n" % round(train_time, 5))
     f.close()
 
@@ -203,11 +214,21 @@ if __name__ == '__main__':
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() and args.gpu != -1
                           else "cpu")
     train_data, test_data, token_size = preprocess(args)
-    # Define model structure
-    hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers - 1)]
-    num_heads = [args.num_heads for _ in range(args.num_layers - 1)]
-    model = DCC_GNN(token_size, args.input_dim, hidden_dims, args.graph_dim, num_heads,
-                    [128, 64], [32], 2, args.num_layers, args.feat_drop, args.attn_drop,
-                    args.negative_slope, args.residual, 2, 2)
-    model.to(device)
-    train(args, model, device, train_data, test_data)
+    model = None
+    for i in range(args.epochs - 1, -1, -1):
+        f_name = './model_{}_{}.pth'.format(args.dataset, i + 1)
+        if os.path.exists(f_name):
+            model = torch.load(f_name, map_location=device)
+            exist = i + 1
+            break
+
+    if model == None:
+        # Define model structure
+        hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers - 1)]
+        num_heads = [args.num_heads for _ in range(args.num_layers - 1)]
+        model = DCC_GNN(token_size, args.input_dim, hidden_dims, args.graph_dim, num_heads,
+                        [128, 64], [32], 2, args.num_layers, args.feat_drop, args.attn_drop,
+                        args.negative_slope, args.residual, 2, 2)
+        model.to(device)
+        exist = -1
+    train(args, model, device, train_data, test_data, exist=exist)

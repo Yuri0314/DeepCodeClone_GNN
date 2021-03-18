@@ -1,5 +1,4 @@
-import time
+from tqdm import tqdm, trange
 
-a = time.time()
-time.sleep(5)
-print(time.time() - a)
+for i in trange(5, 10):
+    print(i)
