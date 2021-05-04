@@ -16,11 +16,11 @@ from preprocess.model_input import generate_model_input
 
 def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
-    parser.add_argument("--dataset", default="bigclonebenchdata",
+    parser.add_argument("--dataset", default="googlejam4_src",
                         help="which dataset to use.")
-    parser.add_argument('--dataset-ratio', type=float, default=0.2,
+    parser.add_argument('--dataset-ratio', type=float, default=1.0,
                         help="how much data to use")
-    parser.add_argument("--gpu", type=int, default=0,
+    parser.add_argument("--gpu", type=int, default=1,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=10,
                         help="number of training epochs")
@@ -40,7 +40,7 @@ def parse_args():
                         help="attention dropout in gnn")
     parser.add_argument('--negative-slope', type=float, default=0.2,
                         help="the negative slope of leaky relu")
-    parser.add_argument("--residual", action="store_true", default=False,
+    parser.add_argument("--residual", action="store_true", default=True,
                         help="use residual connection in gnn")
 
     parser.add_argument("--batch-size", type=int, default=32,

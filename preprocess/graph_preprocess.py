@@ -119,7 +119,7 @@ def generate_graph(file2ast, token2idx):
         # 再获取对应graph的表示
         edges = []
         edge_types = []
-        add_edges(ast, edges, edge_types, extra_edge=True)
+        add_edges(ast, edges, edge_types, structural_edge=True, semantic_edge=True)
         graph = [edges, edge_types]
         file2graph[file] = graph
 

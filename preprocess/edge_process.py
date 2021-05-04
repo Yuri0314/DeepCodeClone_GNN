@@ -6,20 +6,21 @@ edge_type_idx = {'Child': 0, 'Parent': 1, 'Sibling': 2,
                  'ParameterList': 15}
 
 
-def add_edges(ast, edges, edge_types, extra_edge=False):
+def add_edges(ast, edges, edge_types, structural_edge=False, semantic_edge=False):
     root_id = ast.root
     add_child_edges(ast, root_id, edges, edge_types)
-    if extra_edge:  # 增加额外边
-        add_parent_edges(ast, root_id, edges, edge_types)
+    add_parent_edges(ast, root_id, edges, edge_types)
+    if structural_edge:  # 增加结构型边
         add_sibling_edges(ast, root_id, edges, edge_types)
         add_token_edges(ast, root_id, edges, edge_types)
-        add_var_edges(ast, edges, edge_types)
         add_loop_edges(ast, edges, edge_types)
         add_if_else_edges(ast, edges, edge_types)
         add_switch_edges(ast, edges, edge_types)
-        add_assign_edges(ast, edges, edge_types)
         add_return_edges(ast, edges, edge_types)
         add_paramList_edges(ast, edges, edge_types)
+    if semantic_edge:   # 增加语义型边
+        add_assign_edges(ast, edges, edge_types)
+        add_var_edges(ast, edges, edge_types)
 
 
 def add_child_edges(ast, root_id, edges, edge_types):
