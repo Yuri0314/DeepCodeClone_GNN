@@ -1,11 +1,12 @@
 import os
 import javalang
 
+from collections import defaultdict
 from javalang.ast import Node
 from tqdm import tqdm
 from treelib import Tree
 
-from preprocess.edge_process import add_edges
+from preprocess.edge_process import add_edges, print_edge_info
 
 
 def parse_node(node):
@@ -108,6 +109,7 @@ def generate_ast(dataset_name):
 def generate_graph(file2ast, token2idx):
     file2tokenIdx = dict()
     file2graph = dict()
+    edge_info = defaultdict(int) # 统计增加的边信息
     for file, ast in tqdm(file2ast.items(), desc='Graph generating', leave=True):
         # 先获取对应graph的结点index列表，用于模型输入
         idx_list = []
@@ -119,9 +121,11 @@ def generate_graph(file2ast, token2idx):
         # 再获取对应graph的表示
         edges = []
         edge_types = []
-        add_edges(ast, edges, edge_types, structural_edge=True, semantic_edge=True)
+        add_edges(ast, edges, edge_types, edge_info, structural_edge=True, semantic_edge=True)
         graph = [edges, edge_types]
         file2graph[file] = graph
+
+    print_edge_info(edge_info, len(file2ast))
 
     return file2graph, file2tokenIdx
 
