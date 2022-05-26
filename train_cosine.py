@@ -8,7 +8,7 @@ import os
 from torch.utils.data import DataLoader
 from tqdm import trange
 
-from model.model import DCC_GNN
+from model.model import DCC_GNN_cosine
 from preprocess.data_preprocsee import generate_pair_data, split_true_false_data
 from preprocess.graph_preprocess import generate_ast, generate_graph
 from preprocess.model_input import generate_model_input
@@ -18,9 +18,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description='DeepCodeClone with GNN')
     parser.add_argument("--dataset", default="bigclonebenchdata",
                         help="which dataset to use.")
-    parser.add_argument('--dataset-ratio', type=float, default=1.0,
+    parser.add_argument('--dataset-ratio', type=float, default=0.2,
                         help="how much data to use")
-    parser.add_argument("--gpu", type=int, default=0,
+    parser.add_argument("--gpu", type=int, default=3,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=10,
                         help="number of training epochs")
@@ -99,7 +99,7 @@ def test(model, device, test_data, loss_func, epoch):
             in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
             output = model(in_data)
             loss = loss + loss_func(output, label_tensor)
-            predict = torch.argmax(output, dim=1).item()
+            predict = torch.sign(output).item()
             if predict == 1 and label == 1:
                 tp += 1
             if predict == 0 and label == 0:
@@ -148,7 +148,7 @@ def test(model, device, test_data, loss_func, epoch):
 def train(args, model, device, train_data, test_data, exist=-1):
     dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True,
                             collate_fn=lambda x: x, num_workers=4)
-    loss_func = nn.CrossEntropyLoss()
+    loss_func = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     train_time = 0.0
     if exist == -1:
@@ -179,7 +179,7 @@ def train(args, model, device, train_data, test_data, exist=-1):
                 u2 = torch.tensor(u2, dtype=torch.long, device=device)
                 v2 = torch.tensor(v2, dtype=torch.long, device=device)
                 edge_types2 = torch.tensor(edge_types2, dtype=torch.long, device=device)
-                label = torch.tensor([label], dtype=torch.long, device=device)
+                label = torch.tensor([label], dtype=torch.float, device=device)
                 in_data = ([idx_list1, u1, v1, edge_types1], [idx_list2, u2, v2, edge_types2])
                 output = model(in_data)
                 batch_loss = batch_loss + loss_func(output, label)
@@ -214,22 +214,21 @@ if __name__ == '__main__':
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() and args.gpu != -1
                           else "cpu")
     train_data, test_data, token_size = preprocess(args)
-    print("token size: ", token_size)
-    # model = None
-    # for i in range(args.epochs - 1, -1, -1):
-    #     f_name = './model_{}_{}.pth'.format(args.dataset, i + 1)
-    #     if os.path.exists(f_name):
-    #         model = torch.load(f_name, map_location=device)
-    #         exist = i + 1
-    #         break
-    #
-    # if model == None:
-    #     # Define model structure
-    #     hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers - 1)]
-    #     num_heads = [args.num_heads for _ in range(args.num_layers - 1)]
-    #     model = DCC_GNN(token_size, args.input_dim, hidden_dims, args.graph_dim, num_heads,
-    #                     [128, 64], [32], 2, args.num_layers, args.feat_drop, args.attn_drop,
-    #                     args.negative_slope, args.residual, 2, 2)
-    #     model.to(device)
-    #     exist = -1
-    # train(args, model, device, train_data, test_data, exist=exist)
+    model = None
+    for i in range(args.epochs - 1, -1, -1):
+        f_name = './model_{}_{}.pth'.format(args.dataset, i + 1)
+        if os.path.exists(f_name):
+            model = torch.load(f_name, map_location=device)
+            exist = i + 1
+            break
+
+    if model == None:
+        # Define model structure
+        hidden_dims = [args.hidden_gnn_dim for _ in range(args.num_layers - 1)]
+        num_heads = [args.num_heads for _ in range(args.num_layers - 1)]
+        model = DCC_GNN_cosine(token_size, args.input_dim, hidden_dims, args.graph_dim, num_heads,
+                        args.num_layers, args.feat_drop, args.attn_drop,
+                        args.negative_slope, args.residual)
+        model.to(device)
+        exist = -1
+    train(args, model, device, train_data, test_data, exist=exist)

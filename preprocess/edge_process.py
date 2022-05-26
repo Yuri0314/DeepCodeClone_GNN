@@ -9,13 +9,13 @@ edge_type_idx = {'Child': 0, 'Parent': 1, 'Sibling': 2,
 
 ast_edge_type = {'AST edge': ['Child', 'Parent']}
 
-structural_edge_type = {'AST structure edge': ['Sibling', 'Token'],
+structural_edge_type = {'AST structure edge': ['Sibling', 'Token']}
+
+semantic_edge_type = {'Assignment semantic edge': ['Assignment'],
+                      'Variable uses chain edge': ['VarReference', 'VarInvocation', 'VarUseChain'],
                         'Loop structure edge': ['WhileLoop', 'DoLoop', 'ForLoop'],
                         'Conditional branching structure edge': ['IfBranch', 'ElseBranch', 'SwitchCase'],
                         'Other structure edges': ['ReturnTo', 'ParameterList']}
-
-semantic_edge_type = {'Assignment semantic edge': ['Assignment'],
-                      'Variable uses chain edge': ['VarReference', 'VarInvocation', 'VarUseChain']}
 
 
 def add_edges(ast, edges, edge_types, edge_info, structural_edge=False, semantic_edge=False):
@@ -25,14 +25,14 @@ def add_edges(ast, edges, edge_types, edge_info, structural_edge=False, semantic
     if structural_edge:  # 增加结构型边
         add_sibling_edges(ast, root_id, edges, edge_types, edge_info)
         add_token_edges(ast, root_id, edges, edge_types, edge_info)
+    if semantic_edge:  # 增加语义型边
+        add_assign_edges(ast, edges, edge_types, edge_info)
+        add_var_edges(ast, edges, edge_types, edge_info)
         add_loop_edges(ast, edges, edge_types, edge_info)
         add_if_else_edges(ast, edges, edge_types, edge_info)
         add_switch_edges(ast, edges, edge_types, edge_info)
         add_return_edges(ast, edges, edge_types, edge_info)
         add_paramList_edges(ast, edges, edge_types, edge_info)
-    if semantic_edge:  # 增加语义型边
-        add_assign_edges(ast, edges, edge_types, edge_info)
-        add_var_edges(ast, edges, edge_types, edge_info)
 
 
 def add_child_edges(ast, root_id, edges, edge_types, edge_info):
